@@ -28,6 +28,6 @@ jobs:
     - name : Run build
       working-directory: ./kiosk-admin
       run: npm run build --if-present
-    - name : change repo
+    # - name : change repo
     #   run : cd /home/newus-mppdigital/htdocs/mppdigital.newus.id/mpp-mobile/actions-runner/_work/mpp-web-fe/mpp-web-fe/mpp-mobile
     # - run : pm2 restart mppdigital.newus.id
