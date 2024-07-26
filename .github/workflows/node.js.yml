@@ -14,7 +14,8 @@ jobs:
       matrix:
         node-version: [22]
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
-   
+    env:
+      NEXT_PUBLIC_API_URL_MPP: https://backend-mpp.newus.id/api
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -35,6 +36,6 @@ jobs:
     - name : Run build
       working-directory: ./kiosk-admin
       run: npm run build --if-present
-    # - name : change repo
-    #   run : cd /home/newus-mppdigital/htdocs/mppdigital.newus.id/mpp-mobile/actions-runner/_work/mpp-web-fe/mpp-web-fe/mpp-mobile
+    - name : change repo
+      run : cd /home/newus-admin-kiosk/htdocs/admin-kiosk.newus.id/actions-runner/_work/mpp-admin-kiosk/mpp-admin-kiosk/kiosk-admin
     # - run : pm2 restart mppdigital.newus.id
