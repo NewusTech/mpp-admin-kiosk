@@ -1,0 +1,33 @@
+# This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across different versions of node
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
+
+name: Node.js CI
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: self-hosted
+    strategy:
+      matrix:
+        node-version: [22]
+        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+   
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22.x'
+    - name : Run NPM
+      working-directory: ./kiosk-admin
+      run: npm ci
+    - name : Run build
+      working-directory: ./kiosk-admin
+      run: npm run build --if-present
+    - name : change repo
+    #   run : cd /home/newus-mppdigital/htdocs/mppdigital.newus.id/mpp-mobile/actions-runner/_work/mpp-web-fe/mpp-web-fe/mpp-mobile
+    # - run : pm2 restart mppdigital.newus.id
