@@ -1,52 +1,65 @@
-import { AntrianQueueType, QueueHistoryType, SettingType } from "@/types/type";
+import {
+  AntrianHistoryType,
+  AntrianQueueType,
+  QueueHistoryType,
+  SettingType,
+} from "@/types/type";
 import { ColumnDef } from "@tanstack/react-table";
 
-export const AntrianQueueColums: ColumnDef<AntrianQueueType>[] = [
+export const AntrianQueueColums: ColumnDef<AntrianHistoryType>[] = [
   {
-    accessorKey: "loket",
+    accessorKey: "id",
     header: "Loket",
   },
   {
-    accessorKey: "layanan",
+    accessorKey: "Layanan.name",
     header: "Layanan",
   },
   {
-    accessorKey: "no_antrian",
+    accessorKey: "code",
     header: "Nomor Antrian",
   },
   {
-    accessorKey: "time",
+    accessorKey: "timeStart",
     header: "Waktu",
   },
   {
-    accessorKey: "status",
+    accessorKey: "date",
+    header: "Tanggal",
+  },
+  {
+    accessorKey: "newStatus",
     header: "Status",
   },
 ];
 
 export const QueueHistoryColums: ColumnDef<QueueHistoryType>[] = [
   {
-    accessorKey: "loket",
+    accessorKey: "id",
     header: "Loket",
   },
   {
-    accessorKey: "layanan",
+    accessorKey: "Layanan.name",
     header: "Layanan",
   },
   {
-    accessorKey: "no_antrian",
+    accessorKey: "code",
     header: "Nomor Antrian",
   },
   {
-    accessorKey: "waktu_datang",
+    accessorKey: "timeStart",
     header: "Waktu Datang",
   },
   {
-    accessorKey: "waktu_selesai",
+    accessorKey: "timeEnd",
     header: "Waktu Selesai",
   },
   {
-    accessorKey: "status",
+    accessorKey: "date",
+    header: "Tanggal",
+  },
+  {
+    accessorKey: "newStatus",
     header: "Status",
   },
 ];

@@ -1,17 +1,15 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { EyeOff, Eye, UserRound, Loader } from "lucide-react";
 import logo from "@/../public/assets/DesignLogoMpp.svg";
-import Image from "next/legacy/image";
-import { Raleway } from "next/font/google";
+import Cookies from "js-cookie";
+import { useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/legacy/image";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -21,7 +19,12 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { EyeOff, Eye, UserRound, Loader } from "lucide-react";
+import { Raleway } from "next/font/google";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import { TermType } from "@/types/type";
+import { TermCondition } from "@/components/fetchings/apis";
 
 const raleway = Raleway({
   subsets: ["latin"],
@@ -29,26 +32,65 @@ const raleway = Raleway({
 });
 
 const formSchema = z.object({
-  username: z.string().min(2).max(50),
-  password: z.string().min(2).max(50),
+  nik: z
+    .string({ message: "Email/NIK/No-Telepon Tidak Boleh Kosong!" })
+    .min(5, { message: "Email/NIK/No-Telepon harus lebih dari 5 karakter" }),
+  password: z
+    .string({ message: "Password harus lebih dari 6 karakter" })
+    .min(6, { message: "Password harus lebih dari 6 karakter" }),
 });
 
 export default function LoginScreen() {
   const router = useRouter();
   const [seen, setSeen] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const { data } = TermCondition();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      username: "",
+      nik: "",
       password: "",
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-  }
+  const term = data?.data;
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    setIsLoading(true);
+    try {
+      const formData = {
+        nik: values.nik,
+        password: values.password,
+      };
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL_MPP}/user/login?admin=${"true"}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+          cache: "no-store",
+        }
+      );
+
+      const result = await response.json();
+
+      if (result?.data?.token) {
+        Cookies.set("Authorization", result?.data?.token);
+        toast.success("Login berhasil!", { duration: 1000 });
+        router.push("/dashboard");
+      } else {
+        toast.error("Login gagal. Periksa NIK dan password Anda.");
+      }
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <section className="md:container md:mx-auto flex justify-center items-center bg-gradient-to-bl from-neutral-50 from-[-40%] via-primary-700 via-99% to-neutral-700 to-[120%] w-screen h-screen md:min-w-full">
@@ -89,17 +131,17 @@ export default function LoginScreen() {
                   <div className="w-full">
                     <FormField
                       control={form.control}
-                      name="username"
+                      name="nik"
                       render={({ field }) => (
                         <FormItem>
                           <FormControl>
                             <Input
-                              placeholder="username"
+                              type="text"
+                              placeholder="NIK/Email/Nomor-Telepon"
                               {...field}
                               className="rounded-[50px] border-none outline-none text-[14px] w-full h-[38px] pl-[15px] py-[10px] font-normal placeholder:text-[14px] focus:outline-none active:border-none focus:border-none active:outline-none placeholder:text-neutral-700"
                             />
                           </FormControl>
-                          <FormMessage />
                         </FormItem>
                       )}
                     />
@@ -109,6 +151,11 @@ export default function LoginScreen() {
                     <UserRound className="text-primary-700 w-[20px] h-[20px] cursor-pointer" />
                   </div>
                 </div>
+                {form.formState.errors.nik && (
+                  <p className="text-destructive text-[14px] text-error-700 mb-1">
+                    {form.formState.errors.nik.message}
+                  </p>
+                )}
 
                 <div className="flex rounded-[50px] bg-neutral-50 text-[14px] w-full h-[40px] font-normal border border-primary-700 placeholder:text-[14px] placeholder:text-neutral-700">
                   <div className="w-full">
@@ -119,12 +166,12 @@ export default function LoginScreen() {
                         <FormItem>
                           <FormControl>
                             <Input
+                              type={!seen ? "text" : "password"}
                               placeholder="Kata Sandi"
                               {...field}
                               className="rounded-[50px] border-none outline-none text-[14px] w-full h-[38px] pl-[15px] py-[10px] font-normal placeholder:text-[14px] focus:outline-none active:border-none focus:border-none active:outline-none placeholder:text-neutral-700"
                             />
                           </FormControl>
-                          <FormMessage />
                         </FormItem>
                       )}
                     />
@@ -138,6 +185,11 @@ export default function LoginScreen() {
                     )}
                   </div>
                 </div>
+                {form.formState.errors.password && (
+                  <p className="text-destructive text-[14px] text-error-700 mb-1">
+                    {form.formState.errors.password.message}
+                  </p>
+                )}
               </div>
 
               <div className="w-3/12 h-[72px] flex flex-row justify-center items-center self-center">
@@ -150,6 +202,28 @@ export default function LoginScreen() {
               </div>
             </form>
           </Form>
+        </div>
+
+        <div className="w-full text-center text-primary-700 text-[14px] mt-4">
+          Dengan mendaftar, Anda menyetujui{" "}
+          {term && (
+            <Link
+              href={term?.desc}
+              target="_blank"
+              className="text-primary-800 font-semibold hover:underline">
+              Syarat & Ketentuan{" "}
+            </Link>
+          )}{" "}
+          kami dan Anda telah membaca{" "}
+          {term && (
+            <Link
+              href={term?.privasi}
+              target="_blank"
+              className="text-primary-800 font-semibold hover:underline">
+              Kebijakan Privasi{" "}
+            </Link>
+          )}{" "}
+          kami.
         </div>
       </div>
     </section>

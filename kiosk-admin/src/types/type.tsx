@@ -20,3 +20,37 @@ export interface SettingType {
   laynanan: string;
   aksi: string;
 }
+
+export interface TermType {
+  id: number;
+  desc: string;
+  privasi: string;
+  privasi_text: string;
+}
+
+export interface AntrianHistoryType {
+  id: number;
+  Layanan: { name: string };
+  audio: string;
+  code: string;
+  createdAt: string;
+  updatedAt: string;
+  status: boolean;
+  date: string;
+  timeStart: string;
+  newStatus: string;
+  timeEnd: string;
+}
+
+export interface DataTypes {
+  AntrianCount: number;
+  AntrianNext: number;
+  AntrianProses: number;
+  AntrianSebelumnya: number;
+  AntrianSelesaiCount: number;
+  riwayatAntrian: AntrianHistoryType[];
+}
+
+export interface AntrianDataTypes {
+  data: DataTypes;
+}
