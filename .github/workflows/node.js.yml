@@ -23,6 +23,11 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '22.x'
+    - name : Git pull
+      working-directory: ./kiosk-admin
+      run : |
+          cd /home/newus-admin-kiosk/htdocs/admin-kiosk.newus.id
+          git pull
     - name : Run NPM
       working-directory: ./kiosk-admin
       run: |
