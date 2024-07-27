@@ -1,3 +1,7 @@
+export interface JwtPayload {
+  layanan_slug: string;
+}
+
 export interface AntrianQueueType {
   loket: string;
   layanan: string;

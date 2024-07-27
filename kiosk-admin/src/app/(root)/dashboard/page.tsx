@@ -1,15 +1,7 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
-import { format } from "date-fns";
-import { Calendar as CalendarIcon, X } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Loader, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -30,7 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DataTables } from "@/components/dataTables";
 import { Search } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Label } from "@/components/ui/label";
 import {
@@ -38,15 +30,24 @@ import {
   QueueHistoryColums,
   SettingColums,
 } from "@/constants";
-import { AntrianDash } from "@/components/fetchings/apis";
-import { AntrianDataTypes, DataTypes } from "@/types/type";
+import { DataTypes, JwtPayload } from "@/types/type";
 import { formatCreateTime } from "@/helpers/time";
 import { formatLongDate, getStartOfMonth, getToday } from "@/helpers/date";
+import { toast } from "sonner";
+import Cookies from "js-cookie";
+import { jwtDecode } from "jwt-decode";
 
 export default function Dashboard() {
-  const [date, setDate] = useState<Date>();
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [data, setData] = useState<DataTypes>();
   const [open, setOpen] = useState(false);
   const [today, setToday] = useState(true);
+  const [audioUrl, setAudioUrl] = useState(null);
+  const [isLoadingNext, setIsLoadingNext] = useState(false);
+  const [isLoadingRecall, setIsLoadingRecall] = useState(false);
+  const [slug, setSlug] = useState({
+    layanan_slug: "",
+  });
   const [filterDate, setFilterDate] = useState<{
     startDate: string;
     endDate: string;
@@ -55,31 +56,73 @@ export default function Dashboard() {
     endDate: "",
   });
 
-  let data = {} as AntrianDataTypes;
+  useEffect(() => {
+    const token = Cookies.get("Authorization");
 
-  if (today) {
-    data = AntrianDash(
-      1000000,
-      "today",
-      filterDate.startDate,
-      filterDate.endDate,
-      "",
-      ""
-    ).data;
-  } else {
-    data = AntrianDash(
-      1000000,
-      "",
-      filterDate.startDate,
-      filterDate.endDate,
-      "",
-      ""
-    ).data;
-  }
+    if (token) {
+      try {
+        const decoded = jwtDecode<JwtPayload>(token);
 
-  const antrianDash = data?.data;
+        if (decoded) {
+          setSlug({
+            layanan_slug: decoded.layanan_slug,
+          });
+        }
+      } catch (error) {
+        console.error("Error decoding token:", error);
+      }
+    }
+  }, []);
 
-  const formatAntrianDatas = antrianDash?.riwayatAntrian?.map((item: any) => ({
+  const fetchDatasAntrians = async (
+    limit: number,
+    range?: string,
+    status?: string,
+    start_date?: string,
+    end_date?: string,
+    code?: string
+  ) => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL_MPP}/user/dashboard/admlayanan-antrian?limit=${limit}&range=${range}&status=${status}&start_date=${start_date}&end_date=${end_date}&code=${code}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${Cookies.get("Authorization")}`,
+          },
+          cache: "no-store",
+        }
+      );
+      const data = await response.json();
+      setData(data.data);
+    } catch (e: any) {
+      toast(e.message);
+    }
+  };
+
+  useEffect(() => {
+    if (today) {
+      fetchDatasAntrians(
+        1000000,
+        "today",
+        filterDate.startDate,
+        filterDate.endDate,
+        "",
+        ""
+      );
+    } else {
+      fetchDatasAntrians(
+        1000000,
+        "",
+        filterDate.startDate,
+        filterDate.endDate,
+        "",
+        ""
+      );
+    }
+  }, []);
+
+  const formatAntrianDatas = data?.riwayatAntrian?.map((item: any) => ({
     ...item,
     timeStart: `${formatCreateTime(item.createdAt)} WIB`,
     date: formatLongDate(item.createdAt),
@@ -90,6 +133,62 @@ export default function Dashboard() {
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFilterDate((prev) => ({ ...prev, [name]: value }));
+  };
+
+  useEffect(() => {
+    if (audioUrl) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      audioRef.current = new Audio(audioUrl);
+      audioRef.current.play().catch((error) => {
+        console.error("Error playing audio:", error);
+      });
+    }
+  }, [audioUrl]);
+
+  const fetchAudio = async () => {
+    setIsLoadingNext(true);
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL_MPP}/panggilantrian/get/${slug.layanan_slug}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${Cookies.get("Authorization")}`,
+          },
+        }
+      );
+      const data = await response.json();
+
+      if (response.ok) {
+        setAudioUrl(data.data.audio);
+        toast(data.message);
+        fetchDatasAntrians(
+          1000000,
+          "today",
+          filterDate.startDate,
+          filterDate.endDate,
+          "",
+          ""
+        );
+      }
+    } catch (e: any) {
+      toast(e.message);
+    } finally {
+      setIsLoadingNext(false);
+    }
+  };
+
+  const replayAudio = () => {
+    setIsLoadingRecall(true);
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch((error) => {
+        console.error("Error replaying audio:", error);
+      });
+      setIsLoadingRecall(false);
+    }
   };
 
   return (
@@ -126,8 +225,8 @@ export default function Dashboard() {
                         Total Antrian
                       </h4>
 
-                      <h6 className="text-primary-700 text-[26px]">
-                        {antrianDash ? antrianDash?.AntrianCount : 0}
+                      <h6 className="text-primary-700 text-[20px]">
+                        {data ? data.AntrianCount : 0}
                       </h6>
                     </div>
 
@@ -136,8 +235,8 @@ export default function Dashboard() {
                         Antrian Selesai
                       </h4>
 
-                      <h6 className="text-primary-700 text-[26px]">
-                        {antrianDash ? antrianDash?.AntrianSelesaiCount : 0}
+                      <h6 className="text-primary-700 text-[20px]">
+                        {data ? data.AntrianSelesaiCount : 0}
                       </h6>
                     </div>
 
@@ -146,8 +245,8 @@ export default function Dashboard() {
                         Antrian Sebelumnya
                       </h4>
 
-                      <h6 className="text-primary-700 text-[26px]">
-                        {antrianDash ? antrianDash?.AntrianSebelumnya : 0}
+                      <h6 className="text-primary-700 text-[20px]">
+                        {data ? data.AntrianSebelumnya : 0}
                       </h6>
                     </div>
 
@@ -156,8 +255,8 @@ export default function Dashboard() {
                         Antrian Saat Ini
                       </h4>
 
-                      <h6 className="text-primary-700 text-[26px]">
-                        {antrianDash ? antrianDash?.AntrianProses : 0}
+                      <h6 className="text-primary-700 text-[20px]">
+                        {data ? data.AntrianProses : 0}
                       </h6>
                     </div>
 
@@ -166,24 +265,27 @@ export default function Dashboard() {
                         Antrian Selanjutnya
                       </h4>
 
-                      <h6 className="text-primary-700 text-[26px]">
-                        {antrianDash ? antrianDash?.AntrianNext : 0}
+                      <h6 className="text-primary-700 text-[20px]">
+                        {data ? data.AntrianNext : 0}
                       </h6>
                     </div>
                   </div>
 
-                  <div className="flex flex-row self-end items-center w-6/12 gap-x-3 px-10 pb-4">
-                    <Button className="bg-error-700 w-3/12 rounded-full text-neutral-50 font-normal">
-                      Panggil
-                    </Button>
-
-                    <Button className="bg-secondary-700 w-3/12 rounded-full text-neutral-50 font-normal">
-                      Ulangi
+                  <div className="flex flex-row self-end justify-end items-center mx-4 w-full gap-x-3 pb-4">
+                    <Button
+                      onClick={replayAudio}
+                      disabled={isLoadingRecall ? true : false}
+                      className="bg-secondary-700 w-2/12 rounded-full text-neutral-50 font-normal">
+                      {isLoadingRecall ? (
+                        <Loader className="animate-spin" />
+                      ) : (
+                        "Ulangi"
+                      )}
                     </Button>
 
                     <AlertDialog open={open} onOpenChange={setOpen}>
                       <AlertDialogTrigger asChild>
-                        <Button className="bg-neutral-800 w-3/12 rounded-full text-neutral-50 font-normal">
+                        <Button className="bg-neutral-800 w-2/12 rounded-full text-neutral-50 font-normal">
                           Transfer
                         </Button>
                       </AlertDialogTrigger>
@@ -349,8 +451,15 @@ export default function Dashboard() {
                       </AlertDialogContent>
                     </AlertDialog>
 
-                    <Button className="bg-success-700 w-3/12 rounded-full text-neutral-50 font-normal">
-                      Selesai
+                    <Button
+                      onClick={fetchAudio}
+                      disabled={isLoadingNext ? true : false}
+                      className="bg-error-700 w-2/12 rounded-full text-neutral-50 font-normal">
+                      {isLoadingNext ? (
+                        <Loader className="animate-spin" />
+                      ) : (
+                        "Panggil"
+                      )}
                     </Button>
                   </div>
                 </div>
