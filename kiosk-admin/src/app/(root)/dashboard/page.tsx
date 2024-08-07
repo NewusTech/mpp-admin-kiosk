@@ -28,8 +28,8 @@ export default function Dashboard() {
   const [slug, setSlug] = useState({ layanan_slug: "" });
   const [filterDate, setFilterDate] = useState<{ startDate: string; endDate: string; }>(
     {
-      startDate: "",
-      endDate: "",
+      startDate: getStartOfMonth(),
+      endDate: getToday(),
     }
   );
 
@@ -51,10 +51,10 @@ export default function Dashboard() {
     }
   }, []);
 
-  const fetchDatasAntrians = async (limit: number, range?: string, status?: string, start_date?: string, end_date?: string, code?: string) => {
+  const fetchDatasAntrians = async (limit: number, range?: string, start_date?: string, end_date?: string, code?: string) => {
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL_MPP}/user/dashboard/admlayanan-antrian?limit=${limit}&range=${range}&status=${status}&start_date=${start_date}&end_date=${end_date}&code=${code}`,
+        `${process.env.NEXT_PUBLIC_API_URL_MPP}/user/dashboard/admlayanan-antrian?limit=${limit}&range=${range}&start_date=${start_date}&end_date=${end_date}&code=${code}`,
         {
           method: "GET",
           headers: {
@@ -72,17 +72,18 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (today) {
-      fetchDatasAntrians(1000000, "today", filterDate.startDate, filterDate.endDate, "", "");
+      fetchDatasAntrians(1000000, "today", undefined, undefined, "");
     } else {
-      fetchDatasAntrians(1000000, "", filterDate.startDate, filterDate.endDate, "", "");
+      console.log("asdassda", filterDate)
+      fetchDatasAntrians(1000000, "", filterDate.startDate, filterDate.endDate, "");
     }
-  }, [today]);
+  }, [today, filterDate]);
 
   const formatAntrianDatas = data?.riwayatAntrian?.map((item: any) => ({
     ...item,
     timeStart: `${formatCreateTime(item.createdAt)} WIB`,
     date: formatLongDate(item.createdAt),
-    timeEnd: formatLongDate(item.updatedAt),
+    timeEnd: item.updatedAt ? formatLongDate(item.updatedAt) : null,
     newStatus: item.status ? "Selesai" : "Menunggu",
   }));
 
@@ -121,7 +122,7 @@ export default function Dashboard() {
         setAudioUrl(data.data.audio);
         setIdQueue(data.data.id);
         toast(data.message);
-        fetchDatasAntrians(1000000, "today", filterDate.startDate, filterDate.endDate, "", "");
+        fetchDatasAntrians(1000000, "today", filterDate.startDate, filterDate.endDate, "");
       }
     } catch (e: any) {
       toast(e.message);
@@ -148,7 +149,7 @@ export default function Dashboard() {
         setIdQueue(null);
         localStorage.removeItem("audio");
         toast(data.message);
-        fetchDatasAntrians(1000000, "today", filterDate.startDate, filterDate.endDate, "", "");
+        fetchDatasAntrians(1000000, "today", filterDate.startDate, filterDate.endDate, "");
       }
     } catch (e: any) {
       toast(e.message);
@@ -317,13 +318,7 @@ export default function Dashboard() {
 
               <div className="flex flex-col w-full gap-y-4">
                 <div className="flex flex-row w-full gap-x-8">
-                  <div className="flex flex-row justify-center items-center w-full">
-                  </div>
-
-                  <div className="flex flex-row justify-center items-center w-full">
-                  </div>
-
-                  <div className="flex flex-row justify-center items-center w-full border border-neutral-400 rounded-full pr-4">
+                  <div className="flex flex-row justify-center items-center w-2/6 border border-neutral-400 rounded-full pr-4">
                     <Input
                       className="rounded-full border-none outline-none focus:border-none active:border-none focus:outline-none active:outline-none focus:ring-0 active:ring-0"
                       placeholder="Cari"
