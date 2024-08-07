@@ -1,60 +1,37 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
-import { Loader, X } from "lucide-react";
+import { Loader, Search } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogTrigger,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-} from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { DataTables } from "@/components/dataTables";
-import { Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Label } from "@/components/ui/label";
-import {
-  AntrianQueueColums,
-  QueueHistoryColums,
-  SettingColums,
-} from "@/constants";
+import { AntrianQueueColums, QueueHistoryColums, SettingColums } from "@/constants";
 import { DataTypes, JwtPayload } from "@/types/type";
 import { formatCreateTime } from "@/helpers/time";
 import { formatLongDate, getStartOfMonth, getToday } from "@/helpers/date";
 import { toast } from "sonner";
 import Cookies from "js-cookie";
 import { jwtDecode } from "jwt-decode";
+import useAudioStore from "@/lib/useAudioStore";
 
 export default function Dashboard() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [data, setData] = useState<DataTypes>();
-  const [open, setOpen] = useState(false);
   const [today, setToday] = useState(true);
-  const [audioUrl, setAudioUrl] = useState(null);
+  const { audioUrl, idQueue, setAudioUrl, setIdQueue } = useAudioStore();
   const [isLoadingNext, setIsLoadingNext] = useState(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isLoadingRecall, setIsLoadingRecall] = useState(false);
-  const [slug, setSlug] = useState({
-    layanan_slug: "",
-  });
-  const [filterDate, setFilterDate] = useState<{
-    startDate: string;
-    endDate: string;
-  }>({
-    startDate: "",
-    endDate: "",
-  });
+  const [slug, setSlug] = useState({ layanan_slug: "" });
+  const [filterDate, setFilterDate] = useState<{ startDate: string; endDate: string; }>(
+    {
+      startDate: "",
+      endDate: "",
+    }
+  );
 
   useEffect(() => {
     const token = Cookies.get("Authorization");
@@ -74,14 +51,7 @@ export default function Dashboard() {
     }
   }, []);
 
-  const fetchDatasAntrians = async (
-    limit: number,
-    range?: string,
-    status?: string,
-    start_date?: string,
-    end_date?: string,
-    code?: string
-  ) => {
+  const fetchDatasAntrians = async (limit: number, range?: string, status?: string, start_date?: string, end_date?: string, code?: string) => {
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL_MPP}/user/dashboard/admlayanan-antrian?limit=${limit}&range=${range}&status=${status}&start_date=${start_date}&end_date=${end_date}&code=${code}`,
@@ -102,25 +72,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (today) {
-      fetchDatasAntrians(
-        1000000,
-        "today",
-        filterDate.startDate,
-        filterDate.endDate,
-        "",
-        ""
-      );
+      fetchDatasAntrians(1000000, "today", filterDate.startDate, filterDate.endDate, "", "");
     } else {
-      fetchDatasAntrians(
-        1000000,
-        "",
-        filterDate.startDate,
-        filterDate.endDate,
-        "",
-        ""
-      );
+      fetchDatasAntrians(1000000, "", filterDate.startDate, filterDate.endDate, "", "");
     }
-  }, []);
+  }, [today]);
 
   const formatAntrianDatas = data?.riwayatAntrian?.map((item: any) => ({
     ...item,
@@ -163,20 +119,41 @@ export default function Dashboard() {
 
       if (response.ok) {
         setAudioUrl(data.data.audio);
+        setIdQueue(data.data.id);
         toast(data.message);
-        fetchDatasAntrians(
-          1000000,
-          "today",
-          filterDate.startDate,
-          filterDate.endDate,
-          "",
-          ""
-        );
+        fetchDatasAntrians(1000000, "today", filterDate.startDate, filterDate.endDate, "", "");
       }
     } catch (e: any) {
       toast(e.message);
     } finally {
       setIsLoadingNext(false);
+    }
+  };
+
+  const finishQueue = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL_MPP}/antrianfinish/${idQueue}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${Cookies.get("token")}`,
+          },
+        },
+      );
+      const data = await response.json();
+      if (response.ok) {
+        setAudioUrl(null);
+        setIdQueue(null);
+        localStorage.removeItem("audio");
+        toast(data.message);
+        fetchDatasAntrians(1000000, "today", filterDate.startDate, filterDate.endDate, "", "");
+      }
+    } catch (e: any) {
+      toast(e.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -272,195 +249,68 @@ export default function Dashboard() {
                   </div>
 
                   <div className="flex flex-row self-end justify-end items-center mx-4 w-full gap-x-3 pb-4">
-                    <Button
-                      onClick={replayAudio}
-                      disabled={isLoadingRecall ? true : false}
-                      className="bg-secondary-700 w-2/12 rounded-full text-neutral-50 font-normal">
-                      {isLoadingRecall ? (
-                        <Loader className="animate-spin" />
-                      ) : (
-                        "Ulangi"
-                      )}
-                    </Button>
+                    {idQueue === null && audioUrl === null ? (
+                      <Button
+                        onClick={fetchAudio}
+                        className="bg-error-700 w-2/12 hover:bg-error-800 rounded-full font-normal text-neutral-50"
+                        disabled={isLoadingNext}
+                      >
+                        {isLoadingNext ? (
+                          <Loader className="animate-spin" />
+                        ) : (
+                          "Panggil"
+                        )}
+                      </Button>
+                    ) : (
+                      <Button
+                        className="bg-error-700 w-2/12 hover:bg-error-800 rounded-full font-normal text-neutral-50"
+                        disabled={true}
+                      >
+                        Panggil
+                      </Button>
+                    )}
 
-                    <AlertDialog open={open} onOpenChange={setOpen}>
-                      <AlertDialogTrigger asChild>
-                        <Button className="bg-neutral-800 w-2/12 rounded-full text-neutral-50 font-normal">
-                          Transfer
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader className="mb-4">
-                          <AlertDialogTitle>
-                            <div className="flex flex-row justify-between">
-                              <h3>Transfer</h3>
+                    {idQueue !== null && audioUrl !== null ? (
+                      <Button
+                        onClick={replayAudio}
+                        className="bg-secondary-700 w-2/12 hover:bg-secondary-800 rounded-full font-normal text-neutral-50"
+                        disabled={isLoadingRecall}
+                      >
+                        {isLoadingRecall ? (
+                          <Loader className="animate-spin" />
+                        ) : (
+                          "Ulangi"
+                        )}
+                      </Button>
+                    ) : (
+                      <Button
+                        className="bg-secondary-700 w-2/12 hover:bg-secondary-800 rounded-full font-normal text-neutral-50"
+                        disabled={true}
+                      >
+                        Ulangi
+                      </Button>
+                    )}
 
-                              <AlertDialogFooter></AlertDialogFooter>
-                              <div onClick={() => setOpen(false)}>
-                                <X className="w-6 h-6" />
-                              </div>
-                            </div>
-                          </AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Pilih metode transfer:
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <Tabs defaultValue="transfer-antrian">
-                          <TabsList className="gap-x-3 bg-transparent flex justify-start w-full">
-                            <TabsTrigger
-                              value="transfer-antrian"
-                              className="bg-primary-100 p-4 hover:bg-primary-700 hover:text-neutral-50 text-primary-700 data-[state=active]:bg-primary-700 data-[state=active]:text-neutral-50">
-                              Transfer Antrian
-                            </TabsTrigger>
-                            <TabsTrigger
-                              value="transfer-loket"
-                              className="bg-primary-100 p-4 hover:bg-primary-700 hover:text-neutral-50 text-primary-700 data-[state=active]:bg-primary-700 data-[state=active]:text-neutral-50">
-                              Transfer Loket
-                            </TabsTrigger>
-                          </TabsList>
-
-                          <TabsContent value="transfer-antrian">
-                            <form className="border border-neutral-700 rounded-lg p-4">
-                              <div className="flex flex-col gap-4">
-                                <div className="flex flex-col w-full">
-                                  <h3 className="text-primary-800 font-semibold text-[16px]">
-                                    Nomor Antrian: 10
-                                  </h3>
-
-                                  <h3 className="text-primary-800 font-semibold text-[16px]">
-                                    Jenis Layanan: Permbuatan KTP
-                                  </h3>
-                                </div>
-
-                                <div className="flex flex-row w-full gap-x-4">
-                                  <div className="flex flex-col w-full gap-y-3">
-                                    <Label className="text-neutral-900">
-                                      Loket Awal
-                                    </Label>
-
-                                    <Select>
-                                      <SelectTrigger className="w-full rounded-full">
-                                        <SelectValue placeholder="Pilih Loket" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="light">
-                                          Light
-                                        </SelectItem>
-                                        <SelectItem value="dark">
-                                          Dark
-                                        </SelectItem>
-                                        <SelectItem value="system">
-                                          System
-                                        </SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-
-                                  <div className="flex flex-col w-full gap-y-3">
-                                    <Label className="text-neutral-900">
-                                      Loket Tujuan
-                                    </Label>
-
-                                    <Select>
-                                      <SelectTrigger className="w-full rounded-full">
-                                        <SelectValue placeholder="Pilih Loket" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="light">
-                                          Light
-                                        </SelectItem>
-                                        <SelectItem value="dark">
-                                          Dark
-                                        </SelectItem>
-                                        <SelectItem value="system">
-                                          System
-                                        </SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                </div>
-
-                                <Button
-                                  type="submit"
-                                  className="self-end bg-primary-700 w-4/12 rounded-full text-neutral-50 hover:bg-primary-600">
-                                  Transfer Antrian
-                                </Button>
-                              </div>
-                            </form>
-                          </TabsContent>
-                          <TabsContent value="transfer-loket">
-                            <form className="bg-neutral-50 border border-neutral-700 rounded-lg p-4">
-                              <div className="flex flex-col gap-4">
-                                <div className="flex flex-row w-full gap-x-4">
-                                  <div className="flex flex-col w-full gap-y-3">
-                                    <Label className="text-neutral-900">
-                                      Loket Awal
-                                    </Label>
-
-                                    <Select>
-                                      <SelectTrigger className="w-full rounded-full">
-                                        <SelectValue placeholder="Pilih Loket" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="light">
-                                          Light
-                                        </SelectItem>
-                                        <SelectItem value="dark">
-                                          Dark
-                                        </SelectItem>
-                                        <SelectItem value="system">
-                                          System
-                                        </SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-
-                                  <div className="flex flex-col w-full gap-y-3">
-                                    <Label className="text-neutral-900">
-                                      Loket Tujuan
-                                    </Label>
-
-                                    <Select>
-                                      <SelectTrigger className="w-full rounded-full">
-                                        <SelectValue placeholder="Pilih Loket" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="light">
-                                          Light
-                                        </SelectItem>
-                                        <SelectItem value="dark">
-                                          Dark
-                                        </SelectItem>
-                                        <SelectItem value="system">
-                                          System
-                                        </SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                </div>
-
-                                <Button
-                                  type="submit"
-                                  className="self-end bg-primary-700 w-4/12 rounded-full text-neutral-50 hover:bg-primary-600">
-                                  Transfer Loket
-                                </Button>
-                              </div>
-                            </form>
-                          </TabsContent>
-                        </Tabs>
-                      </AlertDialogContent>
-                    </AlertDialog>
-
-                    <Button
-                      onClick={fetchAudio}
-                      disabled={isLoadingNext ? true : false}
-                      className="bg-error-700 w-2/12 rounded-full text-neutral-50 font-normal">
-                      {isLoadingNext ? (
-                        <Loader className="animate-spin" />
-                      ) : (
-                        "Panggil"
-                      )}
-                    </Button>
+                    {idQueue !== null && audioUrl !== null ? (
+                      <Button
+                        onClick={finishQueue}
+                        className="bg-success-700 w-2/12 hover:bg-success-800 rounded-full font-normal text-neutral-50"
+                        disabled={isLoading}
+                      >
+                        {isLoading ? (
+                          <Loader className="animate-spin" />
+                        ) : (
+                          "Selesai"
+                        )}
+                      </Button>
+                    ) : (
+                      <Button
+                        className="bg-success-700 w-2/12 hover:bg-success-800 rounded-full font-normal text-neutral-50"
+                        disabled={true}
+                      >
+                        Selesai
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -468,29 +318,9 @@ export default function Dashboard() {
               <div className="flex flex-col w-full gap-y-4">
                 <div className="flex flex-row w-full gap-x-8">
                   <div className="flex flex-row justify-center items-center w-full">
-                    <Select>
-                      <SelectTrigger className="w-full rounded-full">
-                        <SelectValue placeholder="Loket" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="light">Light</SelectItem>
-                        <SelectItem value="dark">Dark</SelectItem>
-                        <SelectItem value="system">System</SelectItem>
-                      </SelectContent>
-                    </Select>
                   </div>
 
                   <div className="flex flex-row justify-center items-center w-full">
-                    <Select>
-                      <SelectTrigger className="w-full rounded-full">
-                        <SelectValue placeholder="Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="light">Light</SelectItem>
-                        <SelectItem value="dark">Dark</SelectItem>
-                        <SelectItem value="system">System</SelectItem>
-                      </SelectContent>
-                    </Select>
                   </div>
 
                   <div className="flex flex-row justify-center items-center w-full border border-neutral-400 rounded-full pr-4">
@@ -518,16 +348,6 @@ export default function Dashboard() {
             <div className="flex flex-col w-full mt-5 gap-y-4">
               <div className="flex flex-row w-full gap-x-4">
                 <div className="flex flex-row justify-center items-center w-full">
-                  <Select>
-                    <SelectTrigger className="w-full rounded-full">
-                      <SelectValue placeholder="Loket" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="light">Light</SelectItem>
-                      <SelectItem value="dark">Dark</SelectItem>
-                      <SelectItem value="system">System</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
 
                 <div className="flex flex-row justify-center items-center w-full border border-neutral-400 rounded-full pr-4">
