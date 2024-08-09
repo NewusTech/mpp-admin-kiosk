@@ -33,7 +33,7 @@ export default function Dashboard() {
     }
   );
   const [filterToday, setFilterToday] = useState('today');
-
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     const token = Cookies.get("Authorization");
@@ -55,13 +55,13 @@ export default function Dashboard() {
 
   useEffect(() => {
     socket.on('newAntrian', () => {
-      fetchDatasAntrians(1000000, filterToday, filterDate.startDate, filterDate.endDate, "");
+      fetchDatasAntrians(1000000, filterToday, filterDate.startDate, filterDate.endDate, searchTerm);
     });
 
     return () => {
       socket.off('newAntrian');
     };
-  }, []);
+  }, [filterToday, filterDate, searchTerm]);
 
   const fetchDatasAntrians = async (limit: number, range?: string, start_date?: string, end_date?: string, code?: string) => {
     try {
@@ -83,11 +83,12 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    fetchDatasAntrians(1000000, filterToday, filterDate.startDate, filterDate.endDate, "");
-  }, [filterToday, filterDate]);
+    fetchDatasAntrians(1000000, filterToday, filterDate.startDate, filterDate.endDate, searchTerm);
+  }, [filterToday, filterDate, searchTerm]);
 
-  const formatAntrianDatas = data?.riwayatAntrian?.map((item: any) => ({
+  const formatAntrianDatas = data?.riwayatAntrian?.map((item: any, index: number) => ({
     ...item,
+    nomorUrut: index + 1, // Menambahkan nomor urut berdasarkan index
     timeStart: `${formatCreateTime(item.createdAt)} WIB`,
     date: formatLongDate(item.createdAt),
     timeEnd: item.updatedAt ? formatLongDate(item.updatedAt) : null,
@@ -129,7 +130,7 @@ export default function Dashboard() {
         setAudioUrl(data.data.audio);
         setIdQueue(data.data.id);
         toast(data.message);
-        fetchDatasAntrians(1000000, filterToday, filterDate.startDate, filterDate.endDate, "");
+        fetchDatasAntrians(1000000, filterToday, filterDate.startDate, filterDate.endDate, searchTerm);
       }
     } catch (e: any) {
       toast(e.message);
@@ -156,7 +157,7 @@ export default function Dashboard() {
         setIdQueue(null);
         localStorage.removeItem("audio");
         toast(data.message);
-        fetchDatasAntrians(1000000, filterToday, filterDate.startDate, filterDate.endDate, "");
+        fetchDatasAntrians(1000000, filterToday, filterDate.startDate, filterDate.endDate, searchTerm);
       }
     } catch (e: any) {
       toast(e.message);
@@ -182,22 +183,28 @@ export default function Dashboard() {
         <Tabs defaultValue="booking-queue" className="w-full bg-neutral-50">
           <TabsList className="gap-x-3 bg-transparent pb-6 flex justify-start w-full border-b border-primary-700">
             <TabsTrigger
-              onClick={() => setFilterToday("today")}
+              onClick={() => {
+                setFilterToday("today")
+                setSearchTerm("");
+              }}
               value="booking-queue"
               className="bg-primary-100 p-4 hover:bg-primary-700 hover:text-neutral-50 text-primary-700 data-[state=active]:bg-primary-700 data-[state=active]:text-neutral-50">
               Antrian Aktif
             </TabsTrigger>
             <TabsTrigger
-              onClick={() => setFilterToday("")}
+              onClick={() => {
+                setFilterToday("");
+                setSearchTerm("");
+              }}
               value="queue-history"
               className="bg-primary-100 p-4 hover:bg-primary-700 hover:text-neutral-50 text-primary-700 data-[state=active]:bg-primary-700 data-[state=active]:text-neutral-50">
               Riwayat Antrian
             </TabsTrigger>
-            <TabsTrigger
+            {/* <TabsTrigger
               value="setting"
               className="bg-primary-100 p-4 hover:bg-primary-700 hover:text-neutral-50 text-primary-700 data-[state=active]:bg-primary-700 data-[state=active]:text-neutral-50">
               Pengaturan
-            </TabsTrigger>
+            </TabsTrigger> */}
           </TabsList>
 
           <TabsContent value="booking-queue">
@@ -330,6 +337,7 @@ export default function Dashboard() {
                       className="rounded-full border-none outline-none focus:border-none active:border-none focus:outline-none active:outline-none focus:ring-0 active:ring-0"
                       placeholder="Cari"
                       type="text"
+                      onChange={(e) => setSearchTerm(e.target.value)}
                     />
 
                     <Search className="w-6 h-6 text-neutral-800" />
@@ -357,6 +365,7 @@ export default function Dashboard() {
                     className="rounded-full border-none outline-none focus:border-none active:border-none focus:outline-none active:outline-none focus:ring-0 active:ring-0"
                     placeholder="Cari"
                     type="text"
+                    onChange={(e) => setSearchTerm(e.target.value)}
                   />
 
                   <Search className="w-6 h-6 text-neutral-800" />

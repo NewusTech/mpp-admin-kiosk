@@ -8,8 +8,8 @@ import { ColumnDef } from "@tanstack/react-table";
 
 export const AntrianQueueColums: ColumnDef<AntrianHistoryType>[] = [
   {
-    accessorKey: "id",
-    header: "Loket",
+    accessorKey: "nomorUrut",
+    header: "No",
   },
   {
     accessorKey: "Layanan.name",
@@ -35,8 +35,8 @@ export const AntrianQueueColums: ColumnDef<AntrianHistoryType>[] = [
 
 export const QueueHistoryColums: ColumnDef<QueueHistoryType>[] = [
   {
-    accessorKey: "id",
-    header: "Loket",
+    accessorKey: "nomorUrut",
+    header: "No",
   },
   {
     accessorKey: "Layanan.name",
