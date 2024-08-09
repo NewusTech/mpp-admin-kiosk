@@ -48,7 +48,7 @@ export interface AntrianHistoryType {
 
 export interface DataTypes {
   AntrianCount: number;
-  AntrianNext: number;
+  AntrianNext: string;
   AntrianProses: number;
   AntrianSebelumnya: number;
   AntrianSelesaiCount: number;
