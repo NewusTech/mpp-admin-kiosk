@@ -16,11 +16,11 @@ import { toast } from "sonner";
 import Cookies from "js-cookie";
 import { jwtDecode } from "jwt-decode";
 import useAudioStore from "@/lib/useAudioStore";
+import socket from "@/utils/socket";
 
 export default function Dashboard() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [data, setData] = useState<DataTypes>();
-  const [today, setToday] = useState(true);
   const { audioUrl, idQueue, setAudioUrl, setIdQueue } = useAudioStore();
   const [isLoadingNext, setIsLoadingNext] = useState(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -32,6 +32,8 @@ export default function Dashboard() {
       endDate: getToday(),
     }
   );
+  const [filterToday, setFilterToday] = useState('today');
+
 
   useEffect(() => {
     const token = Cookies.get("Authorization");
@@ -49,6 +51,16 @@ export default function Dashboard() {
         console.error("Error decoding token:", error);
       }
     }
+  }, []);
+
+  useEffect(() => {
+    socket.on('newAntrian', () => {
+      fetchDatasAntrians(1000000, filterToday, filterDate.startDate, filterDate.endDate, "");
+    });
+
+    return () => {
+      socket.off('newAntrian');
+    };
   }, []);
 
   const fetchDatasAntrians = async (limit: number, range?: string, start_date?: string, end_date?: string, code?: string) => {
@@ -71,13 +83,8 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    if (today) {
-      fetchDatasAntrians(1000000, "today", undefined, undefined, "");
-    } else {
-      console.log("asdassda", filterDate)
-      fetchDatasAntrians(1000000, "", filterDate.startDate, filterDate.endDate, "");
-    }
-  }, [today, filterDate]);
+    fetchDatasAntrians(1000000, filterToday, filterDate.startDate, filterDate.endDate, "");
+  }, [filterToday, filterDate]);
 
   const formatAntrianDatas = data?.riwayatAntrian?.map((item: any) => ({
     ...item,
@@ -122,7 +129,7 @@ export default function Dashboard() {
         setAudioUrl(data.data.audio);
         setIdQueue(data.data.id);
         toast(data.message);
-        fetchDatasAntrians(1000000, "today", filterDate.startDate, filterDate.endDate, "");
+        fetchDatasAntrians(1000000, filterToday, filterDate.startDate, filterDate.endDate, "");
       }
     } catch (e: any) {
       toast(e.message);
@@ -149,7 +156,7 @@ export default function Dashboard() {
         setIdQueue(null);
         localStorage.removeItem("audio");
         toast(data.message);
-        fetchDatasAntrians(1000000, "today", filterDate.startDate, filterDate.endDate, "");
+        fetchDatasAntrians(1000000, filterToday, filterDate.startDate, filterDate.endDate, "");
       }
     } catch (e: any) {
       toast(e.message);
@@ -175,13 +182,13 @@ export default function Dashboard() {
         <Tabs defaultValue="booking-queue" className="w-full bg-neutral-50">
           <TabsList className="gap-x-3 bg-transparent pb-6 flex justify-start w-full border-b border-primary-700">
             <TabsTrigger
-              onClick={() => setToday(true)}
+              onClick={() => setFilterToday("today")}
               value="booking-queue"
               className="bg-primary-100 p-4 hover:bg-primary-700 hover:text-neutral-50 text-primary-700 data-[state=active]:bg-primary-700 data-[state=active]:text-neutral-50">
               Antrian Aktif
             </TabsTrigger>
             <TabsTrigger
-              onClick={() => setToday(false)}
+              onClick={() => setFilterToday("")}
               value="queue-history"
               className="bg-primary-100 p-4 hover:bg-primary-700 hover:text-neutral-50 text-primary-700 data-[state=active]:bg-primary-700 data-[state=active]:text-neutral-50">
               Riwayat Antrian
@@ -250,7 +257,7 @@ export default function Dashboard() {
                   </div>
 
                   <div className="flex flex-row self-end justify-end items-center mx-4 w-full gap-x-3 pb-4">
-                    {idQueue === null && audioUrl === null ? (
+                    {(idQueue === null && audioUrl === null && data?.AntrianNext !== "-") ? (
                       <Button
                         onClick={fetchAudio}
                         className="bg-error-700 w-2/12 hover:bg-error-800 rounded-full font-normal text-neutral-50"
@@ -329,7 +336,7 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {today === true && (
+                {filterToday === "today" && (
                   <DataTables
                     columns={AntrianQueueColums}
                     data={formatAntrianDatas ? formatAntrianDatas : []}
@@ -383,7 +390,7 @@ export default function Dashboard() {
               </div>
 
               <div>
-                {today === false && (
+                {filterToday === "" && (
                   <DataTables
                     columns={QueueHistoryColums}
                     data={formatAntrianDatas ? formatAntrianDatas : []}
